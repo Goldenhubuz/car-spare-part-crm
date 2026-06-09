@@ -48,7 +48,7 @@ class BaseDocumentItem(Base):
     income_price = Column(Numeric(25, 5), nullable=False, default=0.0)
     sale_price = Column(Numeric(25, 5), nullable=False, default=0.0)
     sale_percentage = Column(Numeric(15, 2), nullable=False, default=0.0)
-    currency_rate_value = Column(Numeric(15, 2))
+    currency_rate_value = Column(Numeric(15, 2), nullable=True)
     # relationships
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     item_id = Column(Integer, ForeignKey('items.id'), nullable=False)

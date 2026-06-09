@@ -20,7 +20,7 @@ class PurchaseRead(BaseModelSchema):
     customer_id: int
     is_debt: bool
     paid_date: Optional[datetime]
-    document: DocumentRead
+    document: Optional[DocumentRead] = None
     total_price: float
     remain_money: float
 

@@ -15,6 +15,7 @@ dependencies = [
     "marshmallow>=4.3.0",
     "passlib>=1.7.4",
     "psycopg2>=2.9.12",
+    "pydantic>=2.13.3",
     "python-jose[cryptography]>=3.5.0",
     "pytz>=2026.1.post1",
     "sqladmin>=0.25.0",

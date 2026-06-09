@@ -29,6 +29,7 @@ async def get_items(
             .options(
                 # KEEP THESE (Relationships)
                 selectinload(Item.category),
+                selectinload(Item.company),
                 selectinload(Item.sub_category),
                 selectinload(Item.unit),
                 selectinload(Item.car),
@@ -47,6 +48,7 @@ async def get_items(
                 "name": item.name,
                 "car": item.car.name if item.car else None,
                 "barcode": item.barcode,
+                "company": item.company.name if item.company else None,
                 "category": item.category.name if item.category else None,
                 "sub_category": item.sub_category.name if item.sub_category else None,
                 "income_price": item.income_price,
@@ -72,6 +74,7 @@ async def get_items(
         return flattened_list
 
     except Exception as e:
+        print(e)
         raise HTTPException(
             status_code=400, detail=f"Failed to fetch items: {str(e)}")
 
@@ -81,7 +84,8 @@ async def add_item(db: db_dependency, user: user_dependency, product_create: Ite
     try:
         car = await db.get(Car, product_create.car_id) if product_create.car_id else None
         category = await db.get(Category, product_create.category_id)
-        sub_category = await db.get(SubCategory, product_create.sub_category_id) if product_create.sub_category_id else None
+        sub_category = await db.get(SubCategory,
+                                    product_create.sub_category_id) if product_create.sub_category_id else None
         company = await db.get(Company, product_create.company_id) if product_create.company_id else None
 
         type_name = None

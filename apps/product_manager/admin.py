@@ -58,7 +58,7 @@ class ItemAdmin(ModelView, model=Item):
                 data["name"] = name
                 model.name = name
 
-            type_name = types_val[0].name if types_val else None
+            type_name = types_val[0] if types_val else None
 
             barcode = Item.generate_barcode(
                 category_name=category.name if category else None,
@@ -130,7 +130,7 @@ class CarAdmin(ModelView, model=Car):
 
 
 class SubCategoryAdmin(ModelView, model=SubCategory):
-    column_list = [SubCategory.id, SubCategory.name, SubCategory.category_id]
+    column_list = [SubCategory.id, SubCategory.name, "category.name"]
     column_searchable_list = [SubCategory.name]
     name = "Sub Category"
     icon = "fa-solid fa-tag"

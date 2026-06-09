@@ -16,8 +16,8 @@ from apps.purchase.models import Purchase
 from di.db import db_dependency
 from di.user import user_dependency
 from utils.response_type import *
-from .db_writer.create_document import create_document
-from .db_writer.manage_item import create_doc_item, create_doc_item_balance
+from .service.create_document import create_document
+from .service.document_item_service import DocumentItemService
 from apps.document.schemas import DocumentRead
 
 router = APIRouter(
@@ -144,7 +144,7 @@ async def buy_document(db: db_dependency, user: user_dependency, document_scheme
                 if not product:
                     raise HTTPException(status_code=404, detail="Product not found")
 
-                new_doc_item = create_doc_item(
+                new_doc_item = DocumentItemService.create(
                     income_price=product.income_price,
                     sale_price=product.sale_price,
                     item_id=product.id,
@@ -179,7 +179,7 @@ async def buy_document(db: db_dependency, user: user_dependency, document_scheme
                 )
 
                 if is_product_matched:
-                    new_balance = create_doc_item_balance(
+                    new_balance = DocumentItemService.create_balance(
                         user_id=user.get("id"), doc_item=new_doc_item
                     )
                     db.add(new_balance)
@@ -249,7 +249,7 @@ async def sell_document(db: db_dependency, user: user_dependency, document_schem
             if not product:
                 raise HTTPException(status_code=404, detail="Balance not found")
 
-            new_doc_item = create_doc_item(
+            new_doc_item = DocumentItemService.create(
                 income_price=product.income_price,
                 sale_price=product.sale_price,
                 item_id=product.item_id,
