@@ -20,7 +20,7 @@ class ItemAdmin(ModelView, model=Item):
         Item.currency_type,
         "types",
     ]
-    column_searchable_list = [Item.name, Item.barcode]
+    column_searchable_list = [Item.name, Item.barcode, "category.name", "sub_category.name", "company.name"]
     name = "Item"
     icon = "fa-solid fa-box"
     column_default_sort = [(Item.id, True)]
