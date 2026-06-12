@@ -41,6 +41,7 @@ class ItemAdmin(ModelView, model=Item):
         return await session.get(models_map[name], pk)
 
     async def on_model_change(self, data, model, is_created, request):
+        name = data.get("name")
         async with async_session_factory() as session:
             category = await self._resolve_related(session, data, model, "category")
             sub_category = await self._resolve_related(session, data, model, "sub_category")
@@ -48,15 +49,15 @@ class ItemAdmin(ModelView, model=Item):
             company = await self._resolve_related(session, data, model, "company")
 
             types_val = data.get("types") or getattr(model, "types", None)
-
-            name = Item.generate_name(
-                category_name=category.name if category else None,
-                sub_category_name=sub_category.name if sub_category else None,
-                company_name=company.name if company else None,
-            )
-            if name:
-                data["name"] = name
-                model.name = name
+            if name is None:
+                new_name = Item.generate_name(
+                    category_name=category.name if category else None,
+                    sub_category_name=sub_category.name if sub_category else None,
+                    company_name=company.name if company else None,
+                )
+                if name:
+                    data["name"] = new_name
+                    model.name = new_name
 
             type_name = types_val[0] if types_val else None
 

@@ -14,6 +14,7 @@ class TypeRead(BaseModelSchema):
 
 
 class ProductRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     name: str
     car: str
@@ -85,3 +86,17 @@ class ProductCreatedRes(BaseModel):
         if hasattr(v, 'name'):  # If it's the Category object, get the .name
             return v.name
         return str(v)
+
+
+class CompanyGroupSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: Optional[int] = None
+    name: str
+    products: List[ProductRead]
+
+
+class CategoryGroupSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: Optional[int] = None
+    name: str
+    companies: List[CompanyGroupSchema]

@@ -1,24 +1,30 @@
+from collections import defaultdict
+from idlelib import query
+from unittest import result
+
 from sqlalchemy import func
 from typing import Dict, List
 
 from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy import select, delete, insert
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload
 
+from apps import Company
 from apps.product_manager.models import Item, Type, TypeItem, Car, Category, SubCategory
 from apps.company.models import Company
-from apps.product_manager.schemas.product import ProductRead
+from apps.product_manager.schemas.product import ProductRead, CompanyGroupSchema, CategoryGroupSchema
 from apps.product_manager.schemes import ItemCreateScheme, ItemUpdateScheme
 from di.db import db_dependency
 from di.user import user_dependency
 from utils.pagination import pagination, PostPagination
+from utils.response_type import response_item
 
 router = APIRouter(prefix="/items", tags=["Item Management"])
 
 
 # Using your generic wrapper
 @router.get("/", response_model=List[Dict])
-async def get_items(
+async def get_products(
         db: db_dependency,
 ):
     try:
@@ -77,6 +83,52 @@ async def get_items(
         print(e)
         raise HTTPException(
             status_code=400, detail=f"Failed to fetch items: {str(e)}")
+
+
+@router.get("/groups", response_model=List[CategoryGroupSchema])
+async def get_product_groups(
+        db: db_dependency,
+):
+    stmt = (
+        select(Category).options(
+            joinedload(Category.items).joinedload(Item.company),
+            joinedload(Category.items).joinedload(Item.car),
+            joinedload(Category.items).joinedload(Item.unit),
+            joinedload(Category.items).joinedload(Item.sub_category)
+        )
+    )
+    result = await db.execute(stmt)
+
+    categories = result.unique().scalars().all()
+    response_data = []
+    for category in categories:
+        company_buckets = defaultdict(list)
+        for item in category.items:
+            if item.company:
+                company_key = (item.company.id, item.company.name)
+            else:
+                company_key = (0, "Unknown / No Company")
+
+            product_data = ProductRead.from_orm(item)
+            company_buckets[company_key].append(product_data)
+
+        companies_list = []
+        for (company_id, company_name), products in company_buckets.items():
+            companies_list.append(
+                CompanyGroupSchema(
+                    id=company_id if company_id != 0 else None,
+                    products=products, name=company_name,
+                )
+            )
+        response_data.append(
+            CategoryGroupSchema(
+                id=category.id,
+                name=category.name,
+                companies=companies_list
+            )
+        )
+
+    return response_data
 
 
 @router.post("/add", status_code=status.HTTP_201_CREATED)
