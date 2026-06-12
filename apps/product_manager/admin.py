@@ -1,5 +1,7 @@
+from typing import Any, Set, Tuple
+
 from sqladmin import ModelView
-from sqlalchemy import select
+from sqlalchemy import Select, false, or_, cast, select, String
 from .models import Item, Category, SubCategory, Unit, Type, TypeItem, Car
 from apps.company.models import Company
 from config.database_config import async_session_factory
@@ -24,6 +26,39 @@ class ItemAdmin(ModelView, model=Item):
     name = "Item"
     icon = "fa-solid fa-box"
     column_default_sort = [(Item.id, True)]
+
+    @staticmethod
+    def _outer_join_relationship_paths(
+        stmt: Select,
+        field_path: str,
+        joined_paths: Set[str],
+        model: type,
+    ) -> Tuple[Select, Any]:
+        parts = field_path.split(".")
+        current_path = ""
+        for part in parts[:-1]:
+            current_path = f"{current_path}.{part}" if current_path else part
+            relationship_attr = getattr(model, part)
+            next_model = relationship_attr.mapper.class_
+            if current_path not in joined_paths:
+                stmt = stmt.outerjoin(relationship_attr)
+                joined_paths.add(current_path)
+            model = next_model
+        return stmt, model
+
+    def search_query(self, stmt: Select, term: str) -> Select:
+        expressions = []
+        joined_paths: Set[str] = set()
+
+        for field in self._search_fields:
+            stmt, model = self._outer_join_relationship_paths(
+                stmt, field, joined_paths, self.model
+            )
+            parts = field.split(".")
+            field_attr = getattr(model, parts[-1])
+            expressions.append(cast(field_attr, String).ilike(f"%{term}%"))
+
+        return stmt.filter(or_(false(), *expressions))
 
     async def _resolve_related(self, session, data, model, name):
         val = data.get(name) or data.get(
