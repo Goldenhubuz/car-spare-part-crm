@@ -1,5 +1,3 @@
-from pydantic import BaseModel, field_validator
-
 from pydantic import BaseModel, ConfigDict, field_validator
 from typing import Optional, List
 
@@ -57,6 +55,13 @@ class ProductRead(BaseModel):
         if hasattr(v, 'name'):  # If it's the Car object, get the .name
             return v.name
         return str(v)
+
+    @field_validator('item_type', mode='before')
+    @classmethod
+    def transform_item_type(cls, v):
+        if hasattr(v, 'name'):  # If it's a Type object, get the .name
+            return v.name
+        return str(v) if v else None
 
 
 class ProductCreatedRes(BaseModel):

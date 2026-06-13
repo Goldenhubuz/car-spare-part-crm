@@ -13,6 +13,7 @@ from di.user import user_dependency
 from utils.response_type import *
 from .serializers.store_serializers import StoreSchemaRead
 from ..schemas.document import StoreProductRead, StoreCompanyGroupSchema, StoreCategoryGroupSchema
+from ..schemas.product import ProductRead
 
 router = APIRouter(
     prefix="/store",
@@ -60,36 +61,56 @@ async def get_groups(db: db_dependency):
                 joinedload(DocumentItemBalance.item).joinedload(Item.car),
                 joinedload(DocumentItemBalance.item).joinedload(Item.company),
                 joinedload(DocumentItemBalance.item).joinedload(Item.unit),
+                joinedload(DocumentItemBalance.item).joinedload(Item.types),  # 1. Load many-to-many item types
             )
         )
         result = await db.execute(query)
-        balances = result.scalars().all()
+        balances = result.unique().scalars().all()  # <-- Added .unique() here
+
         hierarchical_data = defaultdict(lambda: defaultdict(list))
+
         for balance in balances:
             product = balance.item
             if not product or not product.category:
                 continue
+
             category = product.category
             company = product.company
-            product_payload = StoreProductRead(
-                id=product.id,
-                item=product,
-                item_type=balance.item_type,
-                qty=float(balance.qty),
-                income_price=float(balance.income_price),
-                sale_price=float(balance.sale_price),
-                currency_type=product.currency_type
-            )
+
             cat_key = (category.id, category.name)
             if company:
                 comp_key = (company.id, company.name)
             else:
                 comp_key = (0, "No Company")
-            hierarchical_data[cat_key][comp_key].append(product_payload)
+
+            # 2. Split item if it contains multiple types
+            if product.types:
+                for current_type in product.types:
+                    product_payload = StoreProductRead(
+                        id=product.id,
+                        item=ProductRead.model_validate(product),
+                        item_type=current_type.name,  # Assign individual type name
+                        qty=float(balance.qty),
+                        income_price=float(balance.income_price),
+                        sale_price=float(balance.sale_price),
+                        currency_type=product.currency_type
+                    )
+                    hierarchical_data[cat_key][comp_key].append(product_payload)
+            else:
+                # Fallback if the item has no types assigned
+                product_payload = StoreProductRead(
+                    id=product.id,
+                    item=ProductRead.model_validate(product),
+                    item_type=None,
+                    qty=float(balance.qty),
+                    income_price=float(balance.income_price),
+                    sale_price=float(balance.sale_price),
+                    currency_type=product.currency_type
+                )
+                hierarchical_data[cat_key][comp_key].append(product_payload)
 
         formatted_response = []
         for (cat_id, cat_name), companies_dict in hierarchical_data.items():
-
             companies_list = []
             for (comp_id, comp_name), products in companies_dict.items():
                 companies_list.append(
@@ -108,8 +129,10 @@ async def get_groups(db: db_dependency):
                 )
             )
         return formatted_response
+
     except Exception as e:
-        raise HTTPException(detail=e, status_code=status.HTTP_400_BAD_REQUEST)
+        # Cast exception to string so HTTPException can safely serialize it
+        raise HTTPException(detail=str(e), status_code=status.HTTP_400_BAD_REQUEST)
 
 
 @router.get("/fetch", response_model=List[StoreSchemaRead], status_code=status.HTTP_200_OK)

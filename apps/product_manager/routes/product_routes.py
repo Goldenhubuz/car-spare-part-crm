@@ -94,32 +94,47 @@ async def get_product_groups(
             joinedload(Category.items).joinedload(Item.company),
             joinedload(Category.items).joinedload(Item.car),
             joinedload(Category.items).joinedload(Item.unit),
-            joinedload(Category.items).joinedload(Item.sub_category)
+            joinedload(Category.items).joinedload(Item.sub_category),
+            joinedload(Category.items).joinedload(Item.types)  # 1. Load types
         )
     )
     result = await db.execute(stmt)
 
     categories = result.unique().scalars().all()
     response_data = []
+
     for category in categories:
         company_buckets = defaultdict(list)
+
         for item in category.items:
             if item.company:
                 company_key = (item.company.id, item.company.name)
             else:
                 company_key = (0, "Unknown / No Company")
 
-            product_data = ProductRead.from_orm(item)
-            company_buckets[company_key].append(product_data)
+            # 2. Check if item has types attached
+            if item.types:
+                # If an item has 2 types, loop and create 2 distinct products
+                for current_type in item.types:
+                    product_data = ProductRead.model_validate(item)
+                    product_data.item_type = current_type.name  # Assign the individual type name
+                    company_buckets[company_key].append(product_data)
+            else:
+                # Fallback if no types exist for this item
+                product_data = ProductRead.model_validate(item)
+                product_data.item_type = None
+                company_buckets[company_key].append(product_data)
 
         companies_list = []
         for (company_id, company_name), products in company_buckets.items():
             companies_list.append(
                 CompanyGroupSchema(
                     id=company_id if company_id != 0 else None,
-                    products=products, name=company_name,
+                    products=products,
+                    name=company_name,
                 )
             )
+
         response_data.append(
             CategoryGroupSchema(
                 id=category.id,
