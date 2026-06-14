@@ -288,7 +288,6 @@ async def sell_document(db: db_dependency, user: user_dependency, document_schem
                         note = Note(item_id=item_data.item_id)
                         db.add(note)
                         await db.flush()
-                    await item_balance.hard_delete(db)
             else:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
